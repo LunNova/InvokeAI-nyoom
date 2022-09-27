@@ -1919,11 +1919,12 @@ class LatentDiffusion(DDPM):
         N=8,
         n_row=4,
         sample=True,
-        ddim_steps=200,
+        ddim_steps=75,
         ddim_eta=1.0,
         return_keys=None,
         quantize_denoised=True,
         inpaint=False,
+        plot_reconstruction=False,
         plot_denoise_rows=False,
         plot_progressive_rows=False,
         plot_diffusion_rows=False,
@@ -1944,7 +1945,8 @@ class LatentDiffusion(DDPM):
         N = min(x.shape[0], N)
         n_row = min(x.shape[0], n_row)
         log['inputs'] = x
-        log['reconstruction'] = xrec
+        if plot_reconstruction:
+            log['reconstruction'] = xrec
         if self.model.conditioning_key is not None:
             if hasattr(self.cond_stage_model, 'decode'):
                 xc = self.cond_stage_model.decode(c)
