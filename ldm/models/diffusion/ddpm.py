@@ -2135,24 +2135,26 @@ class LatentDiffusion(DDPM):
 
     @rank_zero_only
     def on_save_checkpoint(self, checkpoint):
-        checkpoint.clear()
+        if self.embedding_manager:
+            checkpoint.clear()
 
-        if os.path.isdir(self.trainer.checkpoint_callback.dirpath):
-            self.embedding_manager.save(
-                os.path.join(
-                    self.trainer.checkpoint_callback.dirpath, 'embeddings.pt'
-                )
-            )
-
-            if (self.global_step - self.emb_ckpt_counter) > 500:
+            if os.path.isdir(self.trainer.checkpoint_callback.dirpath):
                 self.embedding_manager.save(
                     os.path.join(
                         self.trainer.checkpoint_callback.dirpath,
-                        f'embeddings_gs-{self.global_step}.pt',
+                        'embeddings.pt',
                     )
                 )
 
-                self.emb_ckpt_counter += 500
+                if (self.global_step - self.emb_ckpt_counter) > 500:
+                    self.embedding_manager.save(
+                        os.path.join(
+                            self.trainer.checkpoint_callback.dirpath,
+                            f'embeddings_gs-{self.global_step}.pt',
+                        )
+                    )
+
+                    self.emb_ckpt_counter += 500
 
 
 class DiffusionWrapper(pl.LightningModule):
