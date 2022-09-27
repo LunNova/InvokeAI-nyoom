@@ -74,18 +74,18 @@ class VQModel(pl.LightningModule):
         self.lr_g_factor = lr_g_factor
 
     @contextmanager
-    def ema_scope(self, context=None):
+    def ema_scope(self, context=None, verbose=False):
         if self.use_ema:
             self.model_ema.store(self.parameters())
             self.model_ema.copy_to(self)
-            if context is not None:
+            if context is not None and verbose:
                 print(f'{context}: Switched to EMA weights')
         try:
             yield None
         finally:
             if self.use_ema:
                 self.model_ema.restore(self.parameters())
-                if context is not None:
+                if context is not None and verbose:
                     print(f'{context}: Restored training weights')
 
     def init_from_ckpt(self, path, ignore_keys=list()):

@@ -131,7 +131,7 @@ class DDIMSampler(object):
         noise_dropout=0.0,
         score_corrector=None,
         corrector_kwargs=None,
-        verbose=True,
+        verbose=False,
         x_T=None,
         log_every_t=100,
         unconditional_guidance_scale=1.0,
@@ -156,7 +156,8 @@ class DDIMSampler(object):
         # sampling
         C, H, W = shape
         size = (batch_size, C, H, W)
-        print(f'Data shape for DDIM sampling is {size}, eta {eta}')
+        if verbose:
+            print(f'Data shape for DDIM sampling is {size}, eta {eta}')
 
         samples, intermediates = self.ddim_sampling(
             conditioning,
@@ -198,6 +199,7 @@ class DDIMSampler(object):
         corrector_kwargs=None,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
+        verbose=False,
     ):
         device = self.model.betas.device
         b = shape[0]
@@ -231,7 +233,8 @@ class DDIMSampler(object):
         total_steps = (
             timesteps if ddim_use_original_steps else timesteps.shape[0]
         )
-        print(f'Running DDIM Sampling with {total_steps} timesteps')
+        if verbose:
+            print(f'Running DDIM Sampling with {total_steps} timesteps')
 
         iterator = tqdm(
             time_range,

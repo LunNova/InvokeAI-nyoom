@@ -265,18 +265,18 @@ class DDPM(pl.LightningModule):
         assert not torch.isnan(self.lvlb_weights).all()
 
     @contextmanager
-    def ema_scope(self, context=None):
+    def ema_scope(self, context=None, verbose=False):
         if self.use_ema:
             self.model_ema.store(self.model.parameters())
             self.model_ema.copy_to(self.model)
-            if context is not None:
+            if context is not None and verbose:
                 print(f'{context}: Switched to EMA weights')
         try:
             yield None
         finally:
             if self.use_ema:
                 self.model_ema.restore(self.model.parameters())
-                if context is not None:
+                if context is not None and verbose:
                     print(f'{context}: Restored training weights')
 
     def init_from_ckpt(self, path, ignore_keys=list(), only_model=False):
