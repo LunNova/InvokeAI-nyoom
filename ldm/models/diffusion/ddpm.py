@@ -486,7 +486,7 @@ class DDPM(pl.LightningModule):
         if len(x.shape) == 3:
             x = x[..., None]
         x = rearrange(x, 'b h w c -> b c h w')
-        x = x.to(memory_format=torch.contiguous_format).float()
+        x = x.to(memory_format=torch.contiguous_format)
         return x
 
     def shared_step(self, batch):
@@ -503,7 +503,7 @@ class DDPM(pl.LightningModule):
 
         self.log(
             'global_step',
-            self.global_step,
+            float(self.global_step),
             prog_bar=True,
             logger=True,
             on_step=True,
@@ -565,7 +565,7 @@ class DDPM(pl.LightningModule):
         x = self.get_input(batch, self.first_stage_key)
         N = min(x.shape[0], N)
         n_row = min(x.shape[0], n_row)
-        x = x.to(self.device)[:N]
+        x = x[:N]
         log['inputs'] = x
 
         # get diffusion row
@@ -575,7 +575,7 @@ class DDPM(pl.LightningModule):
         for t in range(self.num_timesteps):
             if t % self.log_every_t == 0 or t == self.num_timesteps - 1:
                 t = repeat(torch.tensor([t]), '1 -> b', b=n_row)
-                t = t.to(self.device).long()
+                t = t.long()
                 noise = torch.randn_like(x_start)
                 x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
                 diffusion_row.append(x_noisy)
@@ -716,7 +716,7 @@ class LatentDiffusion(DDPM):
             # set rescale weight to 1./std of encodings
             print('### USING STD-RESCALING ###')
             x = super().get_input(batch, self.first_stage_key)
-            x = x.to(self.device)
+
             encoder_posterior = self.encode_first_stage(x)
             z = self.get_first_stage_encoding(encoder_posterior).detach()
             del self.scale_factor
@@ -798,7 +798,7 @@ class LatentDiffusion(DDPM):
         for zd in tqdm(samples, desc=desc):
             denoise_row.append(
                 self.decode_first_stage(
-                    zd.to(self.device),
+                    zd,
                     force_not_quantize=force_no_decoder_quantization,
                 )
             )
@@ -867,9 +867,7 @@ class LatentDiffusion(DDPM):
             self.split_input_params['clip_min_weight'],
             self.split_input_params['clip_max_weight'],
         )
-        weighting = (
-            weighting.view(1, h * w, 1).repeat(1, 1, Ly * Lx).to(device)
-        )
+        weighting = weighting.view(1, h * w, 1).repeat(1, 1, Ly * Lx)
 
         if self.split_input_params['tie_braker']:
             L_weighting = self.delta_border(Ly, Lx)
@@ -879,7 +877,7 @@ class LatentDiffusion(DDPM):
                 self.split_input_params['clip_max_tie_weight'],
             )
 
-            L_weighting = L_weighting.view(1, 1, Ly * Lx).to(device)
+            L_weighting = L_weighting.view(1, 1, Ly * Lx)
             weighting = weighting * L_weighting
         return weighting
 
@@ -906,7 +904,7 @@ class LatentDiffusion(DDPM):
 
             weighting = self.get_weighting(
                 kernel_size[0], kernel_size[1], Ly, Lx, x.device
-            ).to(x.dtype)
+            ).type_as(x)
             normalization = fold(weighting).view(
                 1, 1, h, w
             )  # normalizes the overlap
@@ -932,7 +930,7 @@ class LatentDiffusion(DDPM):
 
             weighting = self.get_weighting(
                 kernel_size[0] * uf, kernel_size[1] * uf, Ly, Lx, x.device
-            ).to(x.dtype)
+            ).type_as(x)
             normalization = fold(weighting).view(
                 1, 1, h * uf, w * uf
             )  # normalizes the overlap
@@ -959,7 +957,7 @@ class LatentDiffusion(DDPM):
 
             weighting = self.get_weighting(
                 kernel_size[0] // df, kernel_size[1] // df, Ly, Lx, x.device
-            ).to(x.dtype)
+            ).type_as(x)
             normalization = fold(weighting).view(
                 1, 1, h // df, w // df
             )  # normalizes the overlap
@@ -984,9 +982,10 @@ class LatentDiffusion(DDPM):
         bs=None,
     ):
         x = super().get_input(batch, k)
+
         if bs is not None:
             x = x[:bs]
-        x = x.to(self.device)
+
         encoder_posterior = self.encode_first_stage(x)
         z = self.get_first_stage_encoding(encoder_posterior).detach()
 
@@ -999,7 +998,7 @@ class LatentDiffusion(DDPM):
                 elif cond_key == 'class_label':
                     xc = batch
                 else:
-                    xc = super().get_input(batch, cond_key).to(self.device)
+                    xc = super().get_input(batch, cond_key)
             else:
                 xc = x
             if not self.cond_stage_trainable or force_c_encode:
@@ -1007,7 +1006,7 @@ class LatentDiffusion(DDPM):
                     # import pudb; pudb.set_trace()
                     c = self.get_learned_conditioning(xc)
                 else:
-                    c = self.get_learned_conditioning(xc.to(self.device))
+                    c = self.get_learned_conditioning(xc)
             else:
                 c = xc
             if bs is not None:
@@ -1262,7 +1261,8 @@ class LatentDiffusion(DDPM):
             if self.cond_stage_trainable:
                 c = self.get_learned_conditioning(c)
             if self.shorten_cond_schedule:  # TODO: drop this option
-                tc = self.cond_ids[t].to(self.device)
+                # tc = self.cond_ids[t].to(self.device)
+                tc = self.cond_ids[t]
                 c = self.q_sample(
                     x_start=c, t=tc, noise=torch.randn_like(c.float())
                 )
@@ -1487,14 +1487,14 @@ class LatentDiffusion(DDPM):
         loss_simple = self.get_loss(model_output, target, mean=False).mean(
             [1, 2, 3]
         )
-        loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
+        loss_dict.update({f'{prefix}/loss_simple': float(loss_simple.mean())})
 
         logvar_t = self.logvar[t].to(self.device)
         loss = loss_simple / torch.exp(logvar_t) + logvar_t
         # loss = loss_simple / torch.exp(self.logvar) + self.logvar
         if self.learn_logvar:
-            loss_dict.update({f'{prefix}/loss_gamma': loss.mean()})
-            loss_dict.update({'logvar': self.logvar.data.mean()})
+            loss_dict.update({f'{prefix}/loss_gamma': float(loss.mean())})
+            loss_dict.update({'logvar': float(self.logvar.data.mean())})
 
         loss = self.l_simple_weight * loss.mean()
 
@@ -1502,19 +1502,21 @@ class LatentDiffusion(DDPM):
             dim=(1, 2, 3)
         )
         loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
-        loss_dict.update({f'{prefix}/loss_vlb': loss_vlb})
+        loss_dict.update({f'{prefix}/loss_vlb': float(loss_vlb)})
         loss += self.original_elbo_weight * loss_vlb
-        loss_dict.update({f'{prefix}/loss': loss})
+        loss_dict.update({f'{prefix}/loss': float(loss)})
 
         if self.embedding_reg_weight > 0:
             loss_embedding_reg = (
                 self.embedding_manager.embedding_to_coarse_loss().mean()
             )
 
-            loss_dict.update({f'{prefix}/loss_emb_reg': loss_embedding_reg})
+            loss_dict.update(
+                {f'{prefix}/loss_emb_reg': float(loss_embedding_reg)}
+            )
 
             loss += self.embedding_reg_weight * loss_embedding_reg
-            loss_dict.update({f'{prefix}/loss': loss})
+            loss_dict.update({f'{prefix}/loss': float(loss)})
 
         return loss, loss_dict
 

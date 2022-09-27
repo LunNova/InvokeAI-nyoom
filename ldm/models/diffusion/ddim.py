@@ -15,12 +15,14 @@ from ldm.modules.diffusionmodules.util import (
 
 
 class DDIMSampler(object):
+    # FIXME hw agnostic:
+    # This should be a ligntning module so doesn't have an incorrect register_buffer impl
     def __init__(self, model, schedule='linear', device=None, **kwargs):
         super().__init__()
         self.model = model
         self.ddpm_num_timesteps = model.num_timesteps
         self.schedule = schedule
-        self.device   = device or choose_torch_device()
+        self.device = device or choose_torch_device()
 
     def register_buffer(self, name, attr):
         if type(attr) == torch.Tensor:
@@ -45,12 +47,17 @@ class DDIMSampler(object):
         assert (
             alphas_cumprod.shape[0] == self.ddpm_num_timesteps
         ), 'alphas have to be defined for each timestep'
-        to_torch = (
-            lambda x: x.clone()
-            .detach()
-            .to(torch.float32)
-            .to(self.model.device)
-        )
+
+        # Hardware agnostic training: REMOVED
+        # to_torch = (
+        #     lambda x: x.clone()
+        #     .detach()
+        #     .to(torch.float32)
+        #     .to(self.model.device)
+        # )
+        # FIXME: as a noop this is sometimes wrong when this isn't using register_buffer
+        # from pl module
+        to_torch = lambda x: x
 
         self.register_buffer('betas', to_torch(self.model.betas))
         self.register_buffer('alphas_cumprod', to_torch(alphas_cumprod))

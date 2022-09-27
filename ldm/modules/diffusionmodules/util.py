@@ -205,7 +205,7 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
             * torch.arange(start=0, end=half, dtype=torch.float32)
             / half
         ).to(device=timesteps.device)
-        args = timesteps[:, None].float() * freqs[None]
+        args = timesteps[:, None] * freqs[None]
         embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
         if dim % 2:
             embedding = torch.cat(
@@ -258,7 +258,7 @@ class SiLU(nn.Module):
 
 class GroupNorm32(nn.GroupNorm):
     def forward(self, x):
-        return super().forward(x.float()).type(x.dtype)
+        return super().forward(x.float()).type_as(x)
 
 
 def conv_nd(dims, *args, **kwargs):

@@ -143,7 +143,7 @@ class VQModel(pl.LightningModule):
         x = (
             x.permute(0, 3, 1, 2)
             .to(memory_format=torch.contiguous_format)
-            .float()
+            .type_as(batch[k])
         )
         if self.batch_resize_range is not None:
             lower_size = self.batch_resize_range[0]
@@ -312,7 +312,6 @@ class VQModel(pl.LightningModule):
     def log_images(self, batch, only_inputs=False, plot_ema=False, **kwargs):
         log = dict()
         x = self.get_input(batch, self.image_key)
-        x = x.to(self.device)
         if only_inputs:
             log['inputs'] = x
             return log
@@ -437,7 +436,7 @@ class AutoencoderKL(pl.LightningModule):
         x = (
             x.permute(0, 3, 1, 2)
             .to(memory_format=torch.contiguous_format)
-            .float()
+            .type_as(batch[k])
         )
         return x
 
@@ -552,7 +551,6 @@ class AutoencoderKL(pl.LightningModule):
     def log_images(self, batch, only_inputs=False, **kwargs):
         log = dict()
         x = self.get_input(batch, self.image_key)
-        x = x.to(self.device)
         if not only_inputs:
             xrec, posterior = self(x)
             if x.shape[1] > 3:

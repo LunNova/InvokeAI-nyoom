@@ -159,7 +159,7 @@ class NoisyLatentImageClassifier(pl.LightningModule):
         if len(x.shape) == 3:
             x = x[..., None]
         x = rearrange(x, 'b h w c -> b c h w')
-        x = x.to(memory_format=torch.contiguous_format).float()
+        x = x.to(memory_format=torch.contiguous_format)
         return x
 
     @torch.no_grad()
@@ -168,7 +168,7 @@ class NoisyLatentImageClassifier(pl.LightningModule):
             k = self.label_key
         assert k is not None, 'Needs to provide label key'
 
-        targets = batch[k].to(self.device)
+        targets = batch[k]
 
         if self.label_key == 'segmentation':
             targets = rearrange(targets, 'b h w c -> b c h w')
@@ -185,11 +185,9 @@ class NoisyLatentImageClassifier(pl.LightningModule):
     def compute_top_k(self, logits, labels, k, reduction='mean'):
         _, top_ks = torch.topk(logits, k, dim=1)
         if reduction == 'mean':
-            return (
-                (top_ks == labels[:, None]).float().sum(dim=-1).mean().item()
-            )
+            return (top_ks == labels[:, None]).sum(dim=-1).mean().item()
         elif reduction == 'none':
-            return (top_ks == labels[:, None]).float().sum(dim=-1)
+            return (top_ks == labels[:, None]).sum(dim=-1)
 
     def on_train_epoch_start(self):
         # save some memory
@@ -215,11 +213,14 @@ class NoisyLatentImageClassifier(pl.LightningModule):
             on_epoch=True,
         )
         self.log(
-            'loss', log[f'{log_prefix}/loss'], prog_bar=True, logger=False
+            'loss',
+            float(log[f'{log_prefix}/loss']),
+            prog_bar=True,
+            logger=False,
         )
         self.log(
             'global_step',
-            self.global_step,
+            float(self.global_step),
             logger=False,
             on_epoch=False,
             prog_bar=True,
@@ -227,7 +228,7 @@ class NoisyLatentImageClassifier(pl.LightningModule):
         lr = self.optimizers().param_groups[0]['lr']
         self.log(
             'lr_abs',
-            lr,
+            float(lr),
             on_step=True,
             logger=True,
             on_epoch=False,

@@ -55,7 +55,7 @@ class AttentionPool2d(nn.Module):
         b, c, *_spatial = x.shape
         x = x.reshape(b, c, -1)  # NC(HW)
         x = th.cat([x.mean(dim=-1, keepdim=True), x], dim=-1)  # NC(HW+1)
-        x = x + self.positional_embedding[None, :, :].to(x.dtype)  # NC(HW+1)
+        x = x + self.positional_embedding[None, :, :].type_as(x)  # NC(HW+1)
         x = self.qkv_proj(x)
         x = self.attention(x)
         x = self.c_proj(x)
@@ -284,7 +284,7 @@ class ResBlock(TimestepBlock):
             h = in_conv(h)
         else:
             h = self.in_layers(x)
-        emb_out = self.emb_layers(emb).type(h.dtype)
+        emb_out = self.emb_layers(emb).type_as(h)
         while len(emb_out.shape) < len(h.shape):
             emb_out = emb_out[..., None]
         if self.use_scale_shift_norm:
@@ -394,7 +394,7 @@ class QKVAttentionLegacy(nn.Module):
         weight = th.einsum(
             'bct,bcs->bts', q * scale, k * scale
         )  # More stable with f16 than dividing afterwards
-        weight = th.softmax(weight.float(), dim=-1).type(weight.dtype)
+        weight = th.softmax(weight.float(), dim=-1).type_as(weight)
         a = th.einsum('bts,bcs->bct', weight, v)
         return a.reshape(bs, -1, length)
 
@@ -428,7 +428,7 @@ class QKVAttention(nn.Module):
             (q * scale).view(bs * self.n_heads, ch, length),
             (k * scale).view(bs * self.n_heads, ch, length),
         )  # More stable with f16 than dividing afterwards
-        weight = th.softmax(weight.float(), dim=-1).type(weight.dtype)
+        weight = th.softmax(weight.float(), dim=-1).type_as(weight)
         a = th.einsum(
             'bts,bcs->bct', weight, v.reshape(bs * self.n_heads, ch, length)
         )
@@ -793,8 +793,8 @@ class UNetModel(nn.Module):
         ), 'must specify y if and only if the model is class-conditional'
         hs = []
         t_emb = timestep_embedding(
-            timesteps, self.model_channels, repeat_only=False
-        )
+            timesteps.type_as(x), self.model_channels, repeat_only=False
+        ).type_as(x)
         emb = self.time_embed(t_emb)
 
         if self.num_classes is not None:
@@ -809,7 +809,7 @@ class UNetModel(nn.Module):
         for module in self.output_blocks:
             h = th.cat([h, hs.pop()], dim=1)
             h = module(h, emb, context)
-        h = h.type(x.dtype)
+        h = h.type_as(x)
         if self.predict_codebook_ids:
             return self.id_predictor(h)
         else:
@@ -1017,7 +1017,7 @@ class EncoderUNetModel(nn.Module):
         :return: an [N x K] Tensor of outputs.
         """
         emb = self.time_embed(
-            timestep_embedding(timesteps, self.model_channels)
+            timestep_embedding(timesteps, self.model_channels).type_as(x)
         )
 
         results = []
@@ -1025,12 +1025,12 @@ class EncoderUNetModel(nn.Module):
         for module in self.input_blocks:
             h = module(h, emb)
             if self.pool.startswith('spatial'):
-                results.append(h.type(x.dtype).mean(dim=(2, 3)))
+                results.append(h.type_as(x).mean(dim=(2, 3)))
         h = self.middle_block(h, emb)
         if self.pool.startswith('spatial'):
-            results.append(h.type(x.dtype).mean(dim=(2, 3)))
+            results.append(h.type_as(x).mean(dim=(2, 3)))
             h = th.cat(results, axis=-1)
             return self.out(h)
         else:
-            h = h.type(x.dtype)
+            h = h.type_as(x)
             return self.out(h)
