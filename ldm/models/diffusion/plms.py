@@ -19,7 +19,7 @@ class PLMSSampler(object):
         self.model = model
         self.ddpm_num_timesteps = model.num_timesteps
         self.schedule = schedule
-        self.device   = device if device else choose_torch_device()
+        self.device = device if device else choose_torch_device()
 
     def register_buffer(self, name, attr):
         if type(attr) == torch.Tensor:

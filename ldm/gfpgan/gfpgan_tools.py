@@ -13,6 +13,7 @@ opt = arg_parser.parse_args()
 model_path = os.path.join(opt.gfpgan_dir, opt.gfpgan_model_path)
 gfpgan_model_exists = os.path.isfile(model_path)
 
+
 def _run_gfpgan(image, strength, prompt, seed, upsampler_scale=4):
     print(f'>> GFPGAN - Restoring Faces: {prompt} : seed:{seed}')
     gfpgan = None

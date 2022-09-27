@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from ldm.dream.devices import choose_torch_device
 
+
 class CFGDenoiser(nn.Module):
     def __init__(self, model):
         super().__init__()
@@ -22,7 +23,7 @@ class KSampler(object):
         super().__init__()
         self.model = K.external.CompVisDenoiser(model)
         self.schedule = schedule
-        self.device   = device or choose_torch_device()
+        self.device = device or choose_torch_device()
 
         def forward(self, x, sigma, uncond, cond, cond_scale):
             x_in = torch.cat([x] * 2)
@@ -81,8 +82,11 @@ class KSampler(object):
         }
         return (
             K.sampling.__dict__[f'sample_{self.schedule}'](
-                model_wrap_cfg, x, sigmas, extra_args=extra_args,
-                callback=route_callback
+                model_wrap_cfg,
+                x,
+                sigmas,
+                extra_args=extra_args,
+                callback=route_callback,
             ),
             None,
         )
