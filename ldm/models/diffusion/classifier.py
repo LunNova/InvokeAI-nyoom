@@ -3,6 +3,9 @@ import torch
 import pytorch_lightning as pl
 from omegaconf import OmegaConf
 from torch.nn import functional as F
+
+# FIXME: allow selecting deepspeed variant
+# from deepspeed.ops.adam import DeepSpeedCPUAdam as AdamW
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from copy import deepcopy

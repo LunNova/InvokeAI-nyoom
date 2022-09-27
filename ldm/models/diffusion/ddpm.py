@@ -12,6 +12,11 @@ import torch.nn as nn
 import os
 import numpy as np
 import pytorch_lightning as pl
+
+# FIXME: allow selecting deepspeed variant
+# from deepspeed.ops.adam import DeepSpeedCPUAdam as AdamW
+from torch.optim import AdamW
+
 from torch.optim.lr_scheduler import LambdaLR
 from einops import rearrange, repeat
 from contextlib import contextmanager
@@ -604,7 +609,7 @@ class DDPM(pl.LightningModule):
         params = list(self.model.parameters())
         if self.learn_logvar:
             params = params + [self.logvar]
-        opt = torch.optim.AdamW(params, lr=lr)
+        opt = AdamW(params, lr=lr)
         return opt
 
 
@@ -2079,7 +2084,7 @@ class LatentDiffusion(DDPM):
             if self.learn_logvar:
                 print('Diffusion model optimizing logvar')
                 params.append(self.logvar)
-        opt = torch.optim.AdamW(params, lr=lr)
+        opt = AdamW(params, lr=lr)
         if self.use_scheduler:
             assert 'target' in self.scheduler_config
             scheduler = instantiate_from_config(self.scheduler_config)
