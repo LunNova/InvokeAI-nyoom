@@ -620,10 +620,11 @@ class LatentDiffusion(DDPM):
         self,
         first_stage_config,
         cond_stage_config,
-        personalization_config,
+        personalization_config=None,
         num_timesteps_cond=None,
         cond_stage_key='image',
         cond_stage_trainable=False,
+        first_stage_trainable=False,
         concat_mode=True,
         cond_stage_forward=None,
         conditioning_key=None,
@@ -644,6 +645,7 @@ class LatentDiffusion(DDPM):
         ckpt_path = kwargs.pop('ckpt_path', None)
         ignore_keys = kwargs.pop('ignore_keys', [])
         super().__init__(conditioning_key=conditioning_key, *args, **kwargs)
+        self.first_stage_trainable = first_stage_trainable
         self.concat_mode = concat_mode
         self.cond_stage_trainable = cond_stage_trainable
         self.cond_stage_key = cond_stage_key
@@ -670,26 +672,37 @@ class LatentDiffusion(DDPM):
             self.init_from_ckpt(ckpt_path, ignore_keys)
             self.restarted_from_ckpt = True
 
-        self.cond_stage_model.train = disabled_train
-        for param in self.cond_stage_model.parameters():
-            param.requires_grad = False
-
+        make_em = personalization_config is not None
+        self.embedding_manager = None
         self.model.eval()
-        self.model.train = disabled_train
-        for param in self.model.parameters():
-            param.requires_grad = False
-
-        self.embedding_manager = self.instantiate_embedding_manager(
-            personalization_config, self.cond_stage_model
-        )
-
         self.emb_ckpt_counter = 0
 
-        # if self.embedding_manager.is_clip:
-        #     self.cond_stage_model.update_embedding_func(self.embedding_manager)
+        if make_em:
+            print(
+                'Using embedding manager as personalization_config is set'
+                '\n\t!!!!!!\tDisabling training for first_stage_model, cond_stage_model and model'
+            )
+            self.first_stage_model.train = disabled_train
+            for param in self.first_stage_model.parameters():
+                param.requires_grad = False
 
-        for param in self.embedding_manager.embedding_parameters():
-            param.requires_grad = True
+            self.cond_stage_model.train = disabled_train
+            for param in self.cond_stage_model.parameters():
+                param.requires_grad = False
+
+            self.model.train = disabled_train
+            for param in self.model.parameters():
+                param.requires_grad = False
+
+            self.embedding_manager = self.instantiate_embedding_manager(
+                personalization_config, self.cond_stage_model
+            )
+
+            # if self.embedding_manager.is_clip:
+            #     self.cond_stage_model.update_embedding_func(self.embedding_manager)
+
+            for param in self.embedding_manager.embedding_parameters():
+                param.requires_grad = True
 
     def make_cond_schedule(
         self,
@@ -753,10 +766,19 @@ class LatentDiffusion(DDPM):
 
     def instantiate_first_stage(self, config):
         model = instantiate_from_config(config)
-        self.first_stage_model = model.eval()
-        self.first_stage_model.train = disabled_train
-        for param in self.first_stage_model.parameters():
-            param.requires_grad = False
+        print(
+            f'LatentDiffusion.first_stage_model trainable = {self.first_stage_trainable}'
+        )
+        if self.first_stage_trainable:
+            model = model.train()
+            for param in model.parameters():
+                param.requires_grad = True
+        else:
+            model = model.eval()
+            model.train = disabled_train
+            for param in model.parameters():
+                param.requires_grad = False
+        self.first_stage_model = model
 
     def instantiate_cond_stage(self, config):
         if not self.cond_stage_trainable:
