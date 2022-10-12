@@ -124,7 +124,7 @@ class DDPM(pl.LightningModule):
         count_params(self.model, verbose=True)
         self.use_ema = use_ema
         if self.use_ema:
-            self.model_ema = LitEma(self.model)
+            self.model_ema = LitEma(self.model).cpu()
             print(f'Keeping EMAs of {len(list(self.model_ema.buffers()))}.')
 
         self.use_scheduler = scheduler_config is not None
