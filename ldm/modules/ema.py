@@ -11,7 +11,7 @@ class LitEma(nn.Module):
         use_num_upates=True,
         ema_on_cpu=True,
         update_every=100,
-        verbose=True,
+        verbose=False,
     ):
         super().__init__()
         if decay < 0.0 or decay > 1.0:
