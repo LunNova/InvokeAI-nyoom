@@ -1923,7 +1923,7 @@ class LatentDiffusion(DDPM):
         N=8,
         n_row=4,
         sample=True,
-        ddim_steps=75,
+        ddim_steps=50,
         ddim_eta=1.0,
         return_keys=None,
         quantize_denoised=True,
@@ -1932,6 +1932,7 @@ class LatentDiffusion(DDPM):
         plot_denoise_rows=False,
         plot_progressive_rows=False,
         plot_diffusion_rows=False,
+        plot_unscaled=False,
         **kwargs,
     ):
 
@@ -1995,31 +1996,34 @@ class LatentDiffusion(DDPM):
         if sample:
             # get denoise row
             with self.ema_scope('Plotting'):
-                samples, z_denoise_row = self.sample_log(
+                if plot_unscaled:
+                    samples, z_denoise_row = self.sample_log(
+                        cond=c,
+                        batch_size=N,
+                        ddim=use_ddim,
+                        ddim_steps=ddim_steps,
+                        eta=ddim_eta,
+                    )
+                    # samples, z_denoise_row = self.sample(cond=c, batch_size=N, return_intermediates=True)
+                    x_samples = self.decode_first_stage(samples)
+                    log['samples'] = x_samples
+                    if plot_denoise_rows:
+                        denoise_grid = self._get_denoise_row_from_list(z_denoise_row)
+                        log['denoise_row'] = denoise_grid
+
+                import random
+                scale = random.uniform(3, 9)
+                uc = self.get_learned_conditioning(len(c) * [''])
+                sample_scaled, _ = self.sample_log(
                     cond=c,
                     batch_size=N,
                     ddim=use_ddim,
                     ddim_steps=ddim_steps,
                     eta=ddim_eta,
+                    unconditional_guidance_scale=scale,
+                    unconditional_conditioning=uc,
                 )
-                # samples, z_denoise_row = self.sample(cond=c, batch_size=N, return_intermediates=True)
-            x_samples = self.decode_first_stage(samples)
-            log['samples'] = x_samples
-            if plot_denoise_rows:
-                denoise_grid = self._get_denoise_row_from_list(z_denoise_row)
-                log['denoise_row'] = denoise_grid
-
-            uc = self.get_learned_conditioning(len(c) * [''])
-            sample_scaled, _ = self.sample_log(
-                cond=c,
-                batch_size=N,
-                ddim=use_ddim,
-                ddim_steps=ddim_steps,
-                eta=ddim_eta,
-                unconditional_guidance_scale=5.0,
-                unconditional_conditioning=uc,
-            )
-            log['samples_scaled'] = self.decode_first_stage(sample_scaled)
+                log[f'samples_scaled_{scale:.2f}'] = self.decode_first_stage(sample_scaled)
 
             if (
                 quantize_denoised
