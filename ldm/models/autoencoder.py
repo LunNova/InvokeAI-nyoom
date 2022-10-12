@@ -552,7 +552,7 @@ class AutoencoderKL(pl.LightningModule):
         return self.decoder.conv_out.weight
 
     @torch.no_grad()
-    def log_images(self, batch, only_inputs=False, **kwargs):
+    def log_images(self, batch, only_inputs=False, log_samples=False, **kwargs):
         log = dict()
         x = self.get_input(batch, self.image_key)
         if not only_inputs:
@@ -562,7 +562,8 @@ class AutoencoderKL(pl.LightningModule):
                 assert xrec.shape[1] > 3
                 x = self.to_rgb(x)
                 xrec = self.to_rgb(xrec)
-            log['samples'] = self.decode(torch.randn_like(posterior.sample()))
+            if log_samples:
+                log['samples'] = self.decode(torch.randn_like(posterior.sample()))
             log['reconstructions'] = xrec
         log['inputs'] = x
         return log
