@@ -544,6 +544,7 @@ class DDPM(pl.LightningModule):
             logger=True,
             on_step=False,
             on_epoch=True,
+            sync_dist=True,
         )
         self.log_dict(
             loss_dict_ema,
@@ -551,6 +552,7 @@ class DDPM(pl.LightningModule):
             logger=True,
             on_step=False,
             on_epoch=True,
+            sync_dist=True,
         )
 
     def on_train_batch_end(self, *args, **kwargs):
